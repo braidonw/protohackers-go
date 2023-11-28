@@ -13,7 +13,6 @@ import (
 
 func Run() {
 	cfg := server.NewConfig(10001)
-	cfg.ParseFlags()
 	s := PrimeTime{cfg}
 	server.RunTCPServer(s)
 }
