@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net"
 
 	"github.com/braidonw/protohackers-go/internal/server"
@@ -24,8 +25,8 @@ type PrimeTime struct {
 func (PrimeTime) Setup() context.Context { return context.TODO() }
 
 type request struct {
-	Method string `json:"method"`
-	Number int    `json:"number"`
+	Method string  `json:"method"`
+	Number float64 `json:"number"`
 }
 
 type response struct {
@@ -62,36 +63,44 @@ func (PrimeTime) Handle(_ctx context.Context, conn net.Conn) {
 	for scanner.Scan() {
 		in := scanner.Bytes()
 
-		var out []byte
+		var out []byte = []byte(`{"error": "invalid request"}`)
 		var req request
+
+		defer func() {
+			conn.Write(out)
+		}()
 
 		err := json.Unmarshal(in, &req)
 		if err != nil || req.Method != "isPrime" {
 			log.Printf("Error unmarshalling request: %v", err)
-			out = []byte(`{"error": "invalid request"}`)
-		} else {
-			resp, err := handleRequest(req)
-			if err != nil {
-				log.Printf("Error handling request: %v", err)
-				out = []byte(`{"error": "invalid request"}`)
-			}
-
-			out, err = json.Marshal(resp)
-			if err != nil {
-				log.Printf("Error marshalling response: %v", err)
-				out = []byte(`{"error": "invalid request"}`)
-			}
+			continue
 		}
 
-		out = append(out, byte('\n'))
+		if !validateRequest(req) {
+			log.Printf("Invalid request: %v", req)
+			continue
+		}
 
-		if _, err := conn.Write(out); err != nil {
-			log.Printf("Error writing response: %v", err)
-			return
+		resp, err := handleRequest(req)
+		if err != nil {
+			log.Printf("Error handling request: %v", err)
+			continue
+		}
+
+		out, err = json.Marshal(resp)
+		if err != nil {
+			log.Printf("Error marshalling response: %v", err)
+			continue
 		}
 
 		log.Printf("%#q ⇒ %#q (%v)", in, out[:len(out)-1], addr)
 	}
+}
+
+func validateRequest(req request) bool {
+	correctMethod := req.Method == "isPrime"
+	validNumber := math.Trunc(req.Number)
+	return correctMethod && (req.Number > 0) && (req.Number == validNumber)
 }
 
 func handleRequest(req request) (response, error) {
