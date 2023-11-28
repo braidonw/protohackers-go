@@ -110,6 +110,7 @@ func handleRequest(req request) (response, error) {
 		return response{}, errors.New("invalid request")
 	}
 
-	isAPrime := isPrime(req.Number)
+	num := int(math.Trunc(req.Number))
+	isAPrime := isPrime(num)
 	return response{Method: req.Method, Prime: isAPrime}, nil
 }
