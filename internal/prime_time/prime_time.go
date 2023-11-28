@@ -63,36 +63,35 @@ func (PrimeTime) Handle(_ctx context.Context, conn net.Conn) {
 	for scanner.Scan() {
 		in := scanner.Bytes()
 
-		var out []byte = []byte(`{"error": "invalid request"}`)
+		var out []byte
 		var req request
-
-		defer func() {
-			conn.Write(out)
-		}()
 
 		err := json.Unmarshal(in, &req)
 		if err != nil || req.Method != "isPrime" {
 			log.Printf("Error unmarshalling request: %v", err)
-			continue
+			out = []byte(`{"error": "invalid request"}`)
 		}
 
 		if !validateRequest(req) {
 			log.Printf("Invalid request: %v", req)
-			continue
+			out = []byte(`{"error": "invalid request"}`)
 		}
 
 		resp, err := handleRequest(req)
 		if err != nil {
 			log.Printf("Error handling request: %v", err)
-			continue
+			out = []byte(`{"error": "invalid request"}`)
 		}
 
 		out, err = json.Marshal(resp)
 		if err != nil {
 			log.Printf("Error marshalling response: %v", err)
-			continue
+			out = []byte(`{"error": "invalid request"}`)
 		}
 
+		if _, err = conn.Write(out); err != nil {
+			log.Printf("Error writing response: %v", err)
+		}
 		log.Printf("%#q ⇒ %#q (%v)", in, out[:len(out)-1], addr)
 	}
 }
